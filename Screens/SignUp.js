@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ImageBackground, TouchableOpacity, Image, TextInput, StyleSheet, ToastAndroid } from 'react-native';
 import axios from 'axios';
-const LISTCUSTOMER_API = "http://192.168.56.1:3000/api/listcustomer";
+const LISTCUSTOMER_API = "http://192.168.0.101:3000/api/listcustomer";
 function SignUp({ navigation }) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -17,10 +17,7 @@ function SignUp({ navigation }) {
             ToastAndroid.show("Không được để trống", 2);
             return;
         }
-        else if (!phone.match("^\d{10}$")) { 
-            ToastAndroid.show("Số điện thoại phải là số và gồm 10 số", 2);
-            return;
-        }
+
         else {
             try {
 
@@ -92,6 +89,7 @@ function SignUp({ navigation }) {
                             </View>
                         </TouchableOpacity>
                     </View>
+                 
                 </View>
             </ImageBackground>
         </View>

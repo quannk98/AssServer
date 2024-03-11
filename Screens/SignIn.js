@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-const LISTCUSTOMER_API = "http://192.168.56.1:3000/api/signin";
+const LISTCUSTOMER_API = "http://192.168.0.101:3000/api/signin";
 
 function SignIn({ navigation, route }) {
     const [name, setName] = useState('');
@@ -44,6 +44,7 @@ function SignIn({ navigation, route }) {
                 console.log("Đăng nhập thất bại");
 
             }
+         
         } catch (error) {
             ToastAndroid.show("Đăng nhập thất bại", 2)
 

@@ -5673,6 +5673,11 @@ react-native-check-box@^2.1.7:
   dependencies:
     prop-types "^15.5.7"
 
+react-native-face-id@^0.0.0:
+  version "0.0.0"
+  resolved "https://registry.yarnpkg.com/react-native-face-id/-/react-native-face-id-0.0.0.tgz#35c29084071063d3f2a5ce28f7f6da9a1811f04a"
+  integrity sha512-DtYR/jq8fQhPsXmBTuBPHwWY/gVAUx4gKAXw9Ca3WKt0SkI/qAWHPelMjT4ZWpYn1kqPp+zxZwuPKR0jdG4VJA==
+
 react-native-gesture-handler@^2.13.4:
   version "2.13.4"
   resolved "https://registry.yarnpkg.com/react-native-gesture-handler/-/react-native-gesture-handler-2.13.4.tgz#6a99384330278c4488bcfc7f1814be3e0d7401fd"

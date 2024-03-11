@@ -27,7 +27,7 @@ function ProductDetails({ navigation, route }) {
                 style={{ width: 200, height: 200 }}
                 renderItem={({ item: image }) => (
                     <Image
-                        source={{ uri: `http://192.168.56.1:3000/Image/${image}` }}
+                        source={{ uri: `http://192.168.0.101:3000/Image/${image}` }}
                         style={[styles.image]}
                     />
                 )}

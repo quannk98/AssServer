@@ -15,8 +15,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-const API = "http://192.168.56.1:3000/api/customer/"
-const API_history = "http://192.168.56.1:3000/api/buyhistory"
+const API = "http://192.168.0.101:3000/api/customer/"
+const API_history = "http://192.168.0.101:3000/api/buyhistory"
+const API_cart = "http://192.168.0.101:3000/api/cart"
 function BuyProduct({ navigation, route }) {
     const [initialPrice, setInitalPrice] = useState('');
     const [quantity, setQuantity] = useState(1);
@@ -45,13 +46,12 @@ function BuyProduct({ navigation, route }) {
         try {
             const response = await axios.get(API + name);
 
-            if (response.data.success) {
+            if (response.status === 200) {
                 const customerData = response.data.customer;
-
-
                 setPhone(customerData.phone);
                 setAddress(customerData.address)
                 setMoney(customerData.money)
+                console.log("phonew la" + phone)
             } else {
                 console.error('Error fetching customer data:', response.data.message);
             }
@@ -94,6 +94,7 @@ function BuyProduct({ navigation, route }) {
                 ToastAndroid.show("Số lượng sản phẩm hiện tại không đủ", 2);
                 return;
             }
+
             const response = await axios.post(API_history, {
                 name: productData.name,
                 total: price,
@@ -123,6 +124,35 @@ function BuyProduct({ navigation, route }) {
 
 
     }
+    const AddCart = async () => {
+        const nameFromStorage = await AsyncStorage.getItem('nameCustomer');
+        console.log("asdad" + nameFromStorage)
+        try {
+            const response = await axios.post(API_cart, {
+                id_product: productData._id,
+                name_customer: nameFromStorage,
+                name_product: productData.name,
+                price: productData.price,
+                color: productData.color,
+                type: productData.type,
+                images: productData.images,
+                quantity: 1,
+                quantity_product: productData.quantity
+    
+            })
+            if (response.data.success) {
+                ToastAndroid.show("Thêm Vào Giở Hàng Thành Công", 2);
+                navigation.navigate("TabBottom");
+            }
+            else {
+                console.error('Error buying product:', error);
+                ToastAndroid.show("Lỗi thêm vào giỏ hàng", 2);
+            } 
+        } catch (error) {
+            ToastAndroid.show("Sản phẩm đã có trong giỏ hàng", 2);
+        }
+      
+    }
     return (
         <View style={styles.container}>
             <Text style={{ fontSize: 30, fontWeight: "bold", marginBottom: 20 }}>PRODUCT</Text>
@@ -130,10 +160,10 @@ function BuyProduct({ navigation, route }) {
                 data={productData.images.slice(0, 2)}
                 keyExtractor={(image, index) => index.toString()}
                 horizontal
-                style={{ width: 200, height: 200 }}
+                style={{ width: 280, height: 300 }}
                 renderItem={({ item: image }) => (
                     <Image
-                        source={{ uri: `http://192.168.56.1:3000/Image/${image}` }}
+                        source={{ uri: `http://192.168.0.101:3000/Image/${image}` }}
                         style={[styles.images]}
                     />
                 )}
@@ -170,7 +200,7 @@ function BuyProduct({ navigation, route }) {
             </View>
             <View style={{ flexDirection: "row" }}>
                 <View style={{ alignItems: 'center', marginTop: 20 }}>
-                    <TouchableOpacity onPress={() => Buy()} >
+                    <TouchableOpacity onPress={() => AddCart()} >
                         <View style={{ backgroundColor: '#6699FF', width: 180, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center', }}>
                             <Text style={{ fontWeight: 'bold', fontSize: 20 }}>ADD CART</Text>
                         </View>
@@ -203,11 +233,9 @@ const styles = StyleSheet.create({
         borderRadius: 10
     },
     images: {
-        width: Dimensions.get("window").width / 2 - 40,
-        height: Dimensions.get("window").width / 2 - 40,
-        margin: 10,
+        width: 280,
+        height: 300,
         borderRadius: 10,
-        backgroundColor: "white"
     },
     name: {
         fontSize: 40,

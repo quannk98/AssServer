@@ -1,47 +1,51 @@
 import React, { Component, useEffect, useState } from 'react';
-import { View, Text, ImageBackground, Image, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, Button } from 'react-native';
+import { View, Text, ImageBackground, Image, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput, Button, ToastAndroid } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNPickerSelect from 'react-native-picker-select';
 import axios from 'axios';
 
 
-const API = "http://192.168.56.1:3000/api/customer/"
+
+const API = "http://192.168.0.101:3000/api/customer/"
+const API_FAVORITE = "http://192.168.0.101:3000/api/favorite/"
+// const API_DELETEFA = "http://192.168.0.101:3000/api/favoritedelete/"
+
 function Profile({ navigation }) {
     const [name, setName] = useState('');
     const [money, setMoney] = useState(0);
     const [isModalVisible, setModalVisible] = useState(false);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [amount, setAmount] = useState('');
-
-    const loadNameFromStorage = async () => {
-        try {
+    const [dataFa, setDataFa] = useState()
+    useEffect(() => {
+        const loadData = async () => {
             const nameFromStorage = await AsyncStorage.getItem('nameCustomer');
             setName(nameFromStorage);
 
             const response = await axios.get(API + nameFromStorage);
 
-            if (response.data.success) {
+            if (response.status === 200) {
                 const customerData = response.data.customer;
-
-
-                setMoney(customerData.money);
+                setMoney(parseFloat(customerData.money));
             } else {
                 console.error('Error fetching customer data:', response.data.message);
             }
 
+            const responseFa = await axios.get(API_FAVORITE + nameFromStorage);
 
-
-        } catch (error) {
-            console.error('Error loading name from AsyncStorage:', error);
-        }
-    };
-
-    useEffect(() => {
+            if (responseFa.status === 200) {
+                setDataFa(responseFa.data);
+            } else {
+                console.error('Error fetching favorite data:', responseFa.data.message);
+            }
+        };
 
         const interval = setInterval(() => {
-            loadNameFromStorage();
+            loadData();
         }, 1000);
+
+        loadData();
 
         return () => clearInterval(interval);
     }, []);
@@ -53,9 +57,15 @@ function Profile({ navigation }) {
         setModalVisible(!isModalVisible);
     };
     const handlePayment = async () => {
-        try {
+        if (!amount || !money) {
+            console.error('Error handling payment: amount or money is null or undefined');
+            return;
+        }
 
-            const response = await axios.put(API + name, { money: parseFloat(money) + parseFloat(amount) });
+        try {
+            const response = await axios.put(API + name, {
+                money: parseFloat(money) + parseFloat(amount),
+            });
 
             if (response.data.success) {
                 setMoney(parseFloat(money) + parseFloat(amount));
@@ -64,12 +74,13 @@ function Profile({ navigation }) {
                 console.error('Error updating customer data:', response.data.message);
             }
 
-
             toggleModal();
         } catch (error) {
             console.error('Error handling payment:', error);
         }
     };
+
+
     return (
         <View style={{ width: '100%', height: 740 }}>
             <ScrollView>
@@ -131,7 +142,7 @@ function Profile({ navigation }) {
                                 onValueChange={(value) => setSelectedPaymentMethod(value)}
                                 items={[
                                     { label: 'Tiền mặt', value: 'Tiền mặt' },
-                                    { label: 'Thanh toán online', value: 'Thanh toán online' },
+                                    { label: 'ZaloPay', value: 'ZaloPay' },
                                 ]}
                             />
 
@@ -149,6 +160,31 @@ function Profile({ navigation }) {
                         </View>
                     </View>
                 </Modal>
+                <View style={{ justifyContent: "center", alignItems: "center" }}>
+                    <View>
+                        <Text style={{ fontSize: 25, fontWeight: "bold", marginTop: 10 }}>DANH SÁCH YÊU THÍCH</Text>
+                    </View>
+
+                    <View style={{ backgroundColor: "#FFF", width: "90%", height: 320, borderRadius: 10, marginTop: 10 }}>
+                        <ScrollView>
+                            {dataFa && dataFa.map((item, index) => (
+                                <View key={index} style={[styles.container, {
+                                    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: "#EEEEEE", padding: 10,
+                                    borderRadius: 20
+                                }]}>
+                                    <Image source={{
+                                        uri: `http://192.168.0.101:3000/Image/${item.img_product}`,
+                                    }} style={{ width: 80, height: 100, borderRadius: 10,backgroundColor:"white",padding:10 }} />
+                                    <View style={{ flex: 1, marginLeft: 10 }}>
+                                        <Text style={{ fontSize: 25, fontWeight: 'bold', marginStart: 20 }}>{item.name_product}</Text>
+
+                                    </View>
+                                </View>
+                            ))}
+                        </ScrollView>
+
+                    </View>
+                </View>
             </ScrollView>
         </View>
     );

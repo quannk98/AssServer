@@ -1,4 +1,4 @@
-import React, { Component, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, SafeAreaView,
     ScrollView,
@@ -11,209 +11,346 @@ import {
     TouchableOpacity,
     useWindowDimensions,
     ToastAndroid
-
-
-
 } from 'react-native';
-import CheckBox from 'react-native-check-box';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CheckBox from 'react-native-check-box';
+
+const API_USER = "http://192.168.0.101:3000/api/customer/"
+const API_CART = "http://192.168.0.101:3000/api/cart/";
+const API_BILL = "http://192.168.0.101:3000/api/buyhistory"
+const LISTPRODUCTS_API = "http://192.168.0.101:3000/api/listproducts";
+const API_CARTUP = "http://192.168.0.101:3000/api/cartup/";
+const API_CARTDELETE = "http://192.168.0.101:3000/api/cartdelete/";
 
 
-function Cart() {
-    const [checkedItems, setCheckedItems] = useState({});
-    const [initialPrice] = useState(300);
-    const [quantity, setQuantity] = useState(1);
-    const [price, setPrice] = useState(initialPrice);
+const Cart = ({ navigation, route }) => {
+    const [cartItems, setCartItems] = useState([]);
+    const [selectedItems, setSelectedItems] = useState([]);
+    const [totalAmount, setTotalAmount] = useState(0);
+    const [show, setShow] = useState(true)
+    const [password, setPassword] = useState('')
+    const [idUser, setidUser] = useState('')
+    const [name, setName] = useState('');
+    const [money, setMoney] = useState();
+    const [phone, setPhone] = useState('');
+    const [address, setAddress] = useState('');
 
 
-    const increaseQuantity = () => {
-        const newQuantity = quantity + 1;
-        setQuantity(newQuantity);
-        setPrice(initialPrice * newQuantity);
-    };
+    useEffect(() => {
+        const interval = setInterval(() => {
+            getCartItems();
+            loadCustomerDataFromServer()
+        }, 1000)
+        return () => clearInterval(interval);
+    }, []);
+    const loadNameFromStorage = async () => {
+        try {
+            const nameFromStorage = await AsyncStorage.getItem('nameCustomer');
+            setName(nameFromStorage);
 
-    const decreaseQuantity = () => {
-        if (quantity > 1) {
-            const newQuantity = quantity - 1;
-            setQuantity(newQuantity);
-            setPrice(initialPrice * newQuantity);
-        } else {
-            ToastAndroid.show("Không thể giảm được số lượng sản phẩm", 2);
+        } catch (error) {
+            console.error('Error loading name from AsyncStorage:', error);
         }
     };
-    function calculateTotalPrice(checkedItems) {
-        let totalPrice = 0;
+    const loadCustomerDataFromServer = async () => {
 
-        for (const itemId in checkedItems) {
-            if (checkedItems[itemId]) {
-                // Tìm sản phẩm trong danh sách dựa vào itemId và tính toán tổng giá
-                const selectedItem = dataItem_LVcart.find(item => item.id === itemId);
-                if (selectedItem) {
-                    const itemPrice = parseInt(selectedItem.price.replace('$', ''));
-                    totalPrice += itemPrice;
+        try {
+            const nameFromStorage = await AsyncStorage.getItem('nameCustomer');
+            setName(nameFromStorage);
+            const response = await axios.get(API_USER + nameFromStorage);
+
+            if (response.data.success) {
+                const customerData = response.data.customer;
+                setidUser(customerData._id)
+                setMoney(customerData.money)
+                setPassword(customerData.password)
+                setAddress(customerData.address)
+                setPhone(customerData.phone)
+
+            } else {
+                console.error('Error fetching customer data:', response.data.message);
+            }
+        } catch (error) {
+            console.error('Error loading user data from server:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadNameFromStorage();
+    }, []);
+    useEffect(() => {
+        
+        loadCustomerDataFromServer();
+    }, [name]);
+    const getCartItems = async () => {
+        try {
+            const nameFromStorage = await AsyncStorage.getItem("nameCustomer");
+            const response = await axios.get(API_CART + nameFromStorage);
+            if (response.status === 200) {
+                if (response.data.length === 0) {
+                    setShow(true)
+                }
+                else {
+                    setShow(false)
+                    setCartItems(response.data);
+
                 }
             }
+            else {
+                setShow(true)
+
+            }
+
+
+
+        } catch (error) {
+            console.log("2" + error);
+        }
+    };
+    const handleCheckboxChange = (itemId) => {
+        const updatedSelectedItems = selectedItems.includes(itemId) ?
+            selectedItems.filter(_id => _id !== itemId) :
+            [...selectedItems, itemId];
+        setSelectedItems(updatedSelectedItems);
+        calculateTotalAmount(updatedSelectedItems);
+    };
+
+    const calculateTotalAmount = (selectedItems) => {
+        let total = 0;
+        cartItems.forEach(item => {
+            if (selectedItems.includes(item._id)) {
+                const price = Number(item.price);
+                total += price * (item.quantity);
+            }
+        });
+        setTotalAmount(total);
+    };
+
+    const handQuantityChange = async (itemId, quantity) => {
+        if (quantity < 1) {
+            ToastAndroid.show("Số lượng không được nhỏ hơn 1", 2);
+            return;
         }
 
-        return totalPrice;
-    }
+        try {
+            const nameFromStorage = await AsyncStorage.getItem("nameCustomer");
+            const itemToUpdate = cartItems.find((item) => item._id === itemId);
+            if (!itemToUpdate) {
+                console.log("sản phẩm không tồn tại!");
+                return;
+            }
+
+            const response = await axios.put(API_CARTUP + itemId, {
+                name_customer: nameFromStorage,
+                ...itemToUpdate,
+                quantity: quantity,
+            });
+
+            if (response.status === 200) {
+                const updateCartItems = cartItems.map((item) =>
+                    item._id === itemId ? { ...item, quantity } : item
+                );
+                setCartItems(updateCartItems);
+                totalAmount(selectedItems);
+            } else {
+                ToastAndroid.show("Lỗi không cập nhật số lượng sản phẩm", 2);
+            }
+        } catch (error) {
+            console.log("haha" + error);
+            // ToastAndroid.show("Lỗi không cập nhật số lượng sản phẩm", 2);
+        }
+    };
+
+
+    const handleRemoveItem = async (itemId) => {
+        try {
+            const response = await axios.delete(API_CARTDELETE + itemId);
+            if (response.status === 200) {
+                ToastAndroid.show("Đã xóa sản phẩm khỏi giỏ hàng", 2);
+                const updatedCartItems = cartItems.filter(item => item._id !== itemId);
+                setCartItems(updatedCartItems);
+                const updatedSelectedItems = selectedItems.filter(_id => _id !== itemId);
+                setSelectedItems(updatedSelectedItems);
+                calculateTotalAmount(updatedSelectedItems);
+            } else {
+                ToastAndroid.show("Lỗi không xóa sản phẩm khỏi giỏ hàng1", 2);
+            }
+        } catch (error) {
+            console.error("1" + error);
+            ToastAndroid.show("Lỗi khi xóa sản phẩm khỏi giỏ hàng", 2);
+        }
+    };
+    const handleBuySelectedItems = async () => {
+        try {
+            const name = await AsyncStorage.getItem("nameCustomer");
+            const promises = selectedItems.map(async (itemId) => {
+                const selectedItem = cartItems.find((item) => item._id === itemId);
+                if (selectedItem) {
+
+                    const total = parseFloat(selectedItem.quantity) * parseFloat(selectedItem.price)
+                    console.log("qa" + total)
+                    console.log("qa1" + money)
+                    if (money < total) {
+                        ToastAndroid.show("Tài khoản của bạn không đủ để thanh toán", 2);
+                        return;
+                    } else if (selectedItem.quantity_product < selectedItem.quantity) {
+                        ToastAndroid.show("Số lượng sản phẩm không đủ", 2);
+                        return;
+                    } else {
+                        const response = await axios.post(API_BILL, {
+                            name: selectedItem.name_product,
+                            total: total,
+                            quantity: selectedItem.quantity,
+                            buyer: name,
+                            phone: phone,
+                            address: address,
+                            images: selectedItem.images[0],
+                        });
+
+                        if (response.data.success) {
+                            navigation.navigate("TabBottom");
+                            ToastAndroid.show("Mua Hàng Thành Công", 2);
+
+                        } else {
+                            console.error("Error buying product:", response.data.message);
+                            ToastAndroid.show("Đã xảy ra lỗi khi mua hàng", 2);
+                        }
+                    }
+                }
+            });
+
+            await Promise.all(promises);
+            navigation.navigate("TabBottom");
+
+
+        } catch (error) {
+            console.log("Error while buying selected items:", error);
+            navigation.navigate("TabBottom");
+        }
+    };
+
     return (
-        <View>
-            <FlatList
-                data={dataItem_LVcart}
-                style={{ width: "100%", height: 640 }}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item: dataCart }) => {
-
-                    return (
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <CheckBox
-                                style={{ marginStart: 10 }}
-                                isChecked={checkedItems[dataCart.id] || false}
-                                onClick={() => {
-
-                                    setCheckedItems((prevState) => ({
-                                        ...prevState,
-                                        [dataCart.id]: !prevState[dataCart.id],
-                                    }));
-                                }}
-                            />
-
-                            <View style={styles.container}>
-                                <Image source={{ uri: dataCart.image }} style={styles.image} />
-                                <View style={{ marginStart: 20, width: 160, height: "100%" }}>
-                                    <Text style={styles.name}>{dataCart.name}</Text>
-                                    <Text style={styles.price}>Price: {price}$</Text>
-                                    <View style={{ flexDirection: "row" }}>
-                                        <View style={{ flexDirection: "row", marginTop: 18 }}>
-                                            <TouchableOpacity onPress={decreaseQuantity}>
-                                                <Image source={require("E:/React Native/AssignmentAndroidServer/Img/icon_minus-removebg-preview.png")} style={styles.quantity} />
-                                            </TouchableOpacity>
-                                            <View style={{ width: 100, height: 30, borderWidth: 2, justifyContent: "center", alignItems: "center", marginBottom: 5 }}>
-                                                <Text style={{ fontSize: 20, fontWeight: "bold" }}>{quantity}</Text>
-                                            </View>
-                                            <TouchableOpacity onPress={increaseQuantity}>
-                                                <Image source={require("E:/React Native/AssignmentAndroidServer/Img/icon_plus-removebg-preview.png")} style={styles.quantitys} />
-                                            </TouchableOpacity>
-                                        </View>
-
-                                    </View >
-                                </View>
-                                <TouchableOpacity>
-                                    <Image source={require("E:/React Native/AssignmentAndroidServer/Img/xRed-removebg-preview.png")} style={{ width: 30, height: 30 }} />
-                                </TouchableOpacity>
-
-                            </View>
-                        </View>
-
-                    );
-                }}
-            />
-            <View style={{ flexDirection: "row", alignItems: "center", width: "100%", height: 100, backgroundColor: "white", borderRadius: 10, margin: 5, paddingStart: 20 }}>
-                <Text style={{ fontSize: 20, fontWeight: "bold", color: "green", width: 180 }}>Total:{calculateTotalPrice(checkedItems)}$</Text>
-                <View style={{ alignItems: 'center', paddingLeft: 10 }}>
-                    <TouchableOpacity  >
-                        <View style={{ backgroundColor: '#6699FF', width: 180, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center', }}>
-                            <Text style={{ fontWeight: 'bold', fontSize: 20 }}>BUY</Text>
-                        </View>
-
-                    </TouchableOpacity>
-                </View>
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle="dark-content" />
+            <View style={{ alignItems: "center" }}>
+                <Text style={{ marginTop: 10, fontSize: 25, fontWeight: "bold", color: "black", marginBottom: 10 }}>Giỏ Hàng</Text>
             </View>
-        </View>
-
-    );
+            {show ? (<Text style={{ fontSize: 20, fontWeight: "bold", height: "80%", marginTop: 20 }}>Hiện Không Có Sản Phẩm Nào Trong Giỏ Hàng</Text>) :
+                (<FlatList
+                    data={cartItems}
+                    renderItem={({ item }) => (
+                        <View style={styles.cartItem}>
+                            <Image
+                                source={{ uri: `http://192.168.0.101:3000/Image/${item.images[0]}` }}
+                                style={styles.image}
+                            />
+                            <View style={styles.itemDetails}>
+                                <Text style={styles.itemName}>{item.name_product}</Text>
+                                <Text style={styles.itemPrice}>{item.price}$</Text>
+                            </View>
+                            <View style={styles.quantityContainer}>
+                                <TouchableOpacity
+                                    onPress={() => handQuantityChange(item._id, item.quantity - 1)}
+                                >
+                                    <Text style={styles.quantityButton}>-</Text>
+                                </TouchableOpacity>
+                                <Text style={styles.quantity}>{item.quantity}</Text>
+                                <TouchableOpacity
+                                    onPress={() => handQuantityChange(item._id, item.quantity + 1)}
+                                >
+                                    <Text style={styles.quantityButton}>+</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <CheckBox
+                                style={styles.checkbox}
+                                onClick={() => handleCheckboxChange(item._id)}
+                                isChecked={selectedItems.includes(item._id)}
+                            />
+                            <TouchableOpacity onPress={() => handleRemoveItem(item._id)}>
+                                <Image source={require("E:/React Native/AssignmentAndroidServer/Img/xRed-removebg-preview.png")} style={{ width: 25, height: 25, margin: 10 }} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                />)}
+            <View style={styles.totalContainer}>
+                <Text style={styles.totalText}>Total:</Text>
+                <Text style={styles.totalAmountText}>${totalAmount}</Text>
+                <TouchableOpacity onPress={() => handleBuySelectedItems()}>
+                    <View style={{ backgroundColor: '#6699FF', width: 180, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center', }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 20 }}>BUY</Text>
+                    </View>
+                </TouchableOpacity>
+            </View>
+        </SafeAreaView>
+    )
 }
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        backgroundColor: "white",
-        borderWidth: 2,
-        flexDirection: "row",
-        padding: 10,
-        margin: 20,
-        marginStart: 20,
-        borderRadius: 10
-
+        width: "100%",
+        height: "90%",
+        backgroundColor: '#EEEEEE',
+        padding: 16,
     },
-
+    cartItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+        backgroundColor: '#FFF',
+        margin: 5,
+        borderRadius: 8
+    },
     image: {
-        width: 100,
-        height: 100,
-        borderRadius: 10
+        width: 80,
+        height: 80,
+        borderRadius: 4,
+        margin: 10
     },
-    name: {
+    itemDetails: {
+        flex: 1,
+    },
+    itemName: {
         fontSize: 20,
-        fontWeight: "bold"
+        fontWeight: 'bold',
+        marginBottom: 4,
+        width: 80,
+        color: "red"
+
     },
-    price: {
-        fontSize: 15,
-        fontWeight: "bold",
-        color: "green",
+    itemPrice: {
+        fontSize: 14,
+        color: "green"
     },
-    quantity: {
-        width: 20,
-        height: 20,
-        marginRight: 10,
-        marginTop: 5
+    quantityContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 20,
     },
-    quantitys: {
-        width: 20,
-        height: 20,
-        marginRight: 10,
-        marginLeft: 10,
-        marginTop: 5
-    },
+    quantityButton: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        marginHorizontal: 8,
 
 
-
+    },
+    totalContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    totalText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    totalAmountText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
 });
-const dataItem_LVcart =
-    [
-        {
-            "id": "1",
-            "color": "đỏ",
-            "price": "300$",
-            "type": "loai 1",
-            "image": "https://i1-vnexpress.vnecdn.net/2023/02/02/328463889-891024988600042-6177-9136-2603-1675295134.jpg?w=680&h=0&q=100&dpr=1&fit=crop&s=BCVEDMn0Smx1XLiCRi0rrA",
-            "name": "Putin",
-            "createdAt": "2023-01-12T06:26:17.539Z",
-            "createdBy": {
-                "_id": "63ac39aeedf7c80016c57a67",
-                "name": "",
-                "avatar": ""
-
-            }
-        },
-        {
-            "id": "2",
-            "color": "vàng",
-            "price": "200$",
-            "type": "loai 2",
-            "image": "https://i1-vnexpress.vnecdn.net/2023/01/31/117f5804708184dfdd90-162556098-1999-1999-1675148782.jpg?w=300&h=180&q=100&dpr=1&fit=crop&s=Ie6cEqbs1YL8PDAG85QrsA",
-            "name": "Zelensky",
-            "createdAt": "2023-01-12T06:26:17.539Z",
-            "createdBy": {
-                "_id": "63ac39aeedf7c80016c57a67",
-                "name": "",
-                "avatar": ""
-            }
-        },
-        {
-            "id": "3",
-            "title": "xanh",
-            "name": "Obama",
-            "price": "100$",
-            "type": "loai 3",
-            "image": "https://i1-vnexpress.vnecdn.net/2023/01/31/giao-vien3-7193-1674696213-167-6044-9285-1675150549.jpg?w=300&h=180&q=100&dpr=1&fit=crop&s=GJm7EfgbBZ4Pvlut0Bl1rw",
-            "createdAt": "2023-01-12T06:26:17.539Z",
-            "createdBy": {
-                "_id": "63ac39aeedf7c80016c57a67",
-                "name": "",
-                "avatar": ""
-            }
-        },
-    ]
-
-
 export default Cart;

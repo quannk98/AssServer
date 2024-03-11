@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, Image } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_history = "http://192.168.56.1:3000/api/buyhistory/";
+const API_history = "http://192.168.0.101:3000/api/buyhistory/";
 
 function Orders() {
     const [data, setData] = useState([]);
@@ -18,6 +18,7 @@ function Orders() {
                 const response = await axios.get(API_history + nameFromStorage);
 
                 setData(response.data);
+                console.log(response.data)
             } catch (error) {
                 console.log("Error:", error);
                 console.log("Response:", error.response.data);
@@ -29,13 +30,16 @@ function Orders() {
 
         const interval = setInterval(() => {
             fetchData();
-        }, 5000);
+        }, 2000);
 
         return () => clearInterval(interval);
     }, []);
 
     return (
         <View>
+            <View style={{ alignItems: "center" }}>
+                <Text style={{ marginTop: 10, fontSize: 25, fontWeight: "bold", color: "black" }}>Lịch Sử Mua Hàng</Text>
+            </View>
             <FlatList
                 data={data}
                 keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
@@ -43,10 +47,10 @@ function Orders() {
                 renderItem={({ item: dataOrder }) => {
                     return (
                         <View style={styles.container}>
-                            <Image source={{ uri: `http://192.168.56.1:3000/Image/${dataOrder.images[0]}` }} style={styles.image} />
+                            <Image source={{ uri: `http://192.168.0.101:3000/Image/${dataOrder.images[0]}` }} style={styles.image} />
                             <View style={{ marginStart: 20 }}>
                                 <Text style={styles.name}>Product: {dataOrder.name}</Text>
-                                <Text style={styles.price}>Total: {dataOrder.total}</Text>
+                                <Text style={styles.price}>Total: {dataOrder.total}$</Text>
                                 <Text style={styles.price}>Quantity: {dataOrder.quantity}</Text>
                                 <Text style={styles.price}>Buyer: {dataOrder.buyer}</Text>
                                 <Text style={styles.price}>Address: {dataOrder.address}</Text>
@@ -64,7 +68,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "white",
-        borderWidth: 2,
+        // borderWidth: 2,
         flexDirection: "row",
         padding: 10,
         margin: 20,
